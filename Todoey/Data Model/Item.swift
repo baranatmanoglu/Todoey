@@ -8,7 +8,10 @@
 
 import Foundation
 
-class Item{
+class Item : Encodable, Decodable{
     var title : String = ""
     var done : Bool = false
 }
+
+
+//Encodable Serializable gibi bisi/ encodable olmasi icin custom class olamaz.
