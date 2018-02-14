@@ -8,8 +8,9 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController  {
+class TodoListViewController: SwipeTableViewController  {
 
     let realm = try! Realm()
     var toDoItems :  Results<Item>?
@@ -23,16 +24,45 @@ class TodoListViewController: UITableViewController  {
     
     
     
+    @IBOutlet weak var searchBar: UISearchBar!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        tableView.rowHeight = 80
+        tableView.separatorStyle = .none
         
        
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
         
+        title = selectedCategory!.name
+        guard let hexColor = selectedCategory?.backgroundcolor else {fatalError("Category Color Does Not Exist")}
+       
+       updateNavBar(withHexCode: hexColor)
+ 
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        updateNavBar(withHexCode: "0096FF")
     }
 
-    //MARK - TableView DataSource Methods
+    
+    //MARK: - NavBar Setup Methods
+    func updateNavBar(withHexCode colorHexCode: String){
+        guard let navBar = navigationController?.navigationBar else {fatalError("Navigation Controller Does Not Exist")}
+        guard let navBarColor = UIColor(hexString: colorHexCode) else {fatalError("Not a Valid Hex String")}
+        
+        
+        navBar.barTintColor = navBarColor
+        navBar.tintColor = ContrastColorOf(navBarColor, returnFlat: true)
+        searchBar.barTintColor = navBarColor
+        
+        navBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor: ContrastColorOf(navBarColor, returnFlat: true)]
+    }
+    
+    //MARK: - TableView DataSource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return toDoItems?.count ?? 1
@@ -42,19 +72,24 @@ class TodoListViewController: UITableViewController  {
     //cellForRowAt - TableViewi hangi celller ile dolduracagini belirtiyor.
     //tableviewcontollerlar icindeki prototypecelleri olusturup tableview icine atiyorsun.
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = toDoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
             
             cell.accessoryType = item.done ? .checkmark : .none
+            
+            if let color = UIColor(hexString : selectedCategory!.backgroundcolor)?.darken(byPercentage:CGFloat(indexPath.row) / CGFloat(toDoItems!.count)){
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            
         }
         else{
             cell.textLabel?.text = "No items added."
         }
         
        
-        
         return cell
     }
     
@@ -122,6 +157,21 @@ class TodoListViewController: UITableViewController  {
     func loadItems(){
         toDoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending:true)
         tableView.reloadData()
+    }
+    
+    //MARK: - Delete Dat From Swipe
+    override func updateModel(at indexPath : IndexPath){
+        if let itemForDeletion = self.toDoItems?[indexPath.row]{
+            do{
+                try self.realm.write {
+                    self.realm.delete(itemForDeletion)
+                }
+            }
+            catch{
+                print("Error while deleting category: \(error)")
+            }
+            
+        }
     }
     
     
